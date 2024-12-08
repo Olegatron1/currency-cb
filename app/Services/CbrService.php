@@ -1,23 +1,49 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
+use App\Repositories\CbrRepository;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
-use SoapClient;
-use Exception;
+use Illuminate\Support\Facades\Config;
 
 class CbrService
 {
-	private const CBR_WSDL_URL = 'https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx?WSDL';
-	private const CACHE_TTL = 86400;
-
-	public function getRates(string $date): array
+	public function __construct(private readonly CbrRepository $cbrRepository)
 	{
-		return Cache::remember("cbr_rates_{$date}", self::CACHE_TTL, fn() => $this->fetchRatesFromApi($date));
 	}
 
-	public function getExchangeRate(array $rates, string $quoteCurrency, string $baseCurrency = 'RUR'): ?float
+	public function getExchangeRateData(string $date, string $quoteCurrency, string $baseCurrency = 'RUR'): ?object
+	{
+		$rates = $this->getRates($date);
+
+		if (!$rates) {
+			return null;
+		}
+
+		$exchangeRate = $this->getExchangeRate($rates, $quoteCurrency, $baseCurrency);
+
+		if (!$exchangeRate) {
+			return null;
+		}
+
+		return (object) [
+			'date' => $date,
+			'quote_currency' => $quoteCurrency,
+			'base_currency' => $baseCurrency,
+			'rate' => $exchangeRate,
+		];
+	}
+
+	private function getRates(string $date): array
+	{
+		$cacheTTL = Config::get('currency.cache_ttl', 86400);
+
+		return Cache::remember("cbr_rates_$date", $cacheTTL, fn() => $this->cbrRepository->fetchRatesFromApi($date));
+	}
+
+	private function getExchangeRate(array $rates, string $quoteCurrency, string $baseCurrency = 'RUR'): ?float
 	{
 		$quoteRate = $this->findRate($rates, $quoteCurrency);
 		$baseRate = $baseCurrency === 'RUR' ? 1 : $this->findRate($rates, $baseCurrency);
@@ -27,24 +53,9 @@ class CbrService
 
 	private function findRate(array $rates, string $currencyCode): ?float
 	{
-		return collect($rates['ValuteData']['ValuteCursOnDate'] ?? [])
+		$rate = collect($rates['ValuteData']['ValuteCursOnDate'] ?? [])
 			->firstWhere('VchCode', $currencyCode)['Vcurs'] ?? null;
-	}
 
-	private function fetchRatesFromApi(string $date): array
-	{
-		try {
-			$response = (new SoapClient(self::CBR_WSDL_URL))->GetCursOnDate(['On_date' => $date]);
-			$xml = simplexml_load_string($response->GetCursOnDateResult->any);
-
-			if ($xml === false) {
-				throw new Exception('Ошибка парсинга XML.');
-			}
-
-			return json_decode(json_encode($xml), true);
-		} catch (Exception $e) {
-			Log::error("Ошибка при получении курсов валют для {$date}: {$e->getMessage()}");
-			throw new Exception('Не удалось получить курсы валют. Попробуйте позже.');
-		}
+		return $rate !== null ? (float)$rate : null;
 	}
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,8 +13,8 @@ class GetRateRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-	public function rules()
-	{
+	public function rules(): array
+	{//22
 		return [
 			'date' => 'required|date',
 			'quote' => 'required|string',
@@ -20,7 +22,7 @@ class GetRateRequest extends FormRequest
 		];
 	}
 
-	public function messages()
+	public function messages(): array
 	{
 		return [
 			'date.required' => 'Дата обязательна для заполнения.',
