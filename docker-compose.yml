@@ -24,8 +24,6 @@ services:
         depends_on:
             - mysql1
             - redis
-            - meilisearch
-            - mailpit
             - selenium
     mysql1:
         image: 'mysql/mysql-server:8.0'
@@ -39,8 +37,7 @@ services:
             MYSQL_PASSWORD: '${DB_PASSWORD}'
             MYSQL_ALLOW_EMPTY_PASSWORD: 1
         volumes:
-            - 'sail-mysql1:/var/lib/mysql1'
-            - './vendor/laravel/sail/database/mysql1/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
+            - 'sail-mysql1:/var/lib/mysql'
         networks:
             - sail
         healthcheck:
@@ -81,6 +78,4 @@ volumes:
     sail-mysql1:
         driver: local
     sail-redis:
-        driver: local
-    sail-meilisearch:
         driver: local

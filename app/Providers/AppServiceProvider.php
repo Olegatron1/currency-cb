@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
-use App\Repositories\CbrRepository;
+use App\Contracts\DataProviderInterface;
+use App\Contracts\ExchangeRateServiceInterface;
+use App\Services\CbrService;
+use App\Services\CbrXmlDataProvider;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -12,9 +15,8 @@ class AppServiceProvider extends ServiceProvider
      */
 	public function register(): void
 	{
-		$this->app->singleton(CbrRepository::class, function ($app) {
-			return new CbrRepository();
-		});
+		$this->app->bind(ExchangeRateServiceInterface::class, CbrService::class);
+		$this->app->bind(DataProviderInterface::class, CbrXmlDataProvider::class);
 	}
 
     /**

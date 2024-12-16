@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Repositories\CbrRepository;
+use App\Contracts\ExchangeRateServiceInterface;
+use App\Contracts\DataProviderInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 
-class CbrService
+class CbrService implements ExchangeRateServiceInterface
 {
-	public function __construct(private readonly CbrRepository $cbrRepository)
-	{
-	}
+	public function __construct(
+		private readonly DataProviderInterface $dataProvider
+	) {}
 
 	public function getExchangeRateData(string $date, string $quoteCurrency, string $baseCurrency = 'RUR'): ?object
 	{
@@ -40,7 +41,11 @@ class CbrService
 	{
 		$cacheTTL = Config::get('currency.cache_ttl', 86400);
 
-		return Cache::remember("cbr_rates_$date", $cacheTTL, fn() => $this->cbrRepository->fetchRatesFromApi($date));
+		return Cache::remember(
+			"cbr_rates_$date",
+			$cacheTTL,
+			fn() => $this->dataProvider->fetchRates($date)
+		);
 	}
 
 	private function getExchangeRate(array $rates, string $quoteCurrency, string $baseCurrency = 'RUR'): ?float
